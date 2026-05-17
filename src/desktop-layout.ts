@@ -341,14 +341,16 @@ export function createLayoutDispatcher(
 			return;
 		}
 		// Spatial owns the wallpaper as the "core surface": synthesized
-		// core menu icons render here. Server-registered plugin
-		// desktop icons are deliberately suppressed — plugin admin
-		// menus live in the bottom dock, and duplicating them on the
-		// wallpaper would create two paths to the same screen. The
-		// only Spatial-mode wallpaper additions beyond core synthesis
-		// are items the user EXPLICITLY promoted via OS Settings (an
-		// `itemVisibility` override on a dock-native item).
+		// core menu icons render here. Server-registered desktop icons
+		// are explicit wallpaper launchers, so preserve them in Spatial
+		// while still respecting itemVisibility choices such as dock-only
+		// or hidden.
 		const { core } = partition();
+		const visibleServerIcons = applyDesktopPlacement(
+			serverIcons,
+			[],
+			settings.itemVisibility,
+		);
 		const synthesized = core.map( coreItemToIconEntry );
 		const explicitlyPromoted: DesktopIconServerEntry[] = [];
 		let synthIndex = 0;
@@ -365,7 +367,11 @@ export function createLayoutDispatcher(
 				} );
 			}
 		}
-		deps.renderIcons( [ ...synthesized, ...explicitlyPromoted ] );
+		deps.renderIcons( [
+			...visibleServerIcons,
+			...synthesized,
+			...explicitlyPromoted,
+		] );
 	};
 
 	const tearDownDocks = (): void => {

@@ -255,7 +255,7 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( bottomTiles ).not.toContain( 'edit.php' );
 	} );
 
-	test( 'spatial: renders only synthesized core icons, drops server icons', () => {
+	test( 'spatial: preserves server icons alongside synthesized core icons', () => {
 		const { deps, renderIcons } = makeDeps();
 		const serverIcons: DesktopIconServerEntry[] = [
 			{
@@ -279,10 +279,41 @@ describe( 'desktop-layout dispatcher', () => {
 		const ids = ( lastCall as DesktopIconServerEntry[] ).map(
 			( i ) => i.id,
 		);
-		// Server-registered plugin icons are deliberately suppressed
-		// in Spatial — the wallpaper is the "core surface." Plugin
-		// menus live in the bottom dock; doubling them up on the
-		// wallpaper was the user-reported bug.
+		expect( ids ).toEqual( [
+			'plugin:icon',
+			'dock-core:index.php',
+			'dock-core:edit.php',
+		] );
+	} );
+
+	test( 'spatial: respects desktop-icon visibility overrides for server icons', () => {
+		const { deps, renderIcons } = makeDeps( {
+			getSettings: () => ( {
+				itemVisibility: { 'plugin:icon': 'dock' },
+				dockOrder: [],
+			} ),
+		} );
+		const serverIcons: DesktopIconServerEntry[] = [
+			{
+				id: 'plugin:icon',
+				title: 'Plugin',
+				icon: 'dashicons-admin-plugins',
+				window: 'plugin-window',
+				url: '',
+				position: 50,
+			},
+		];
+		createLayoutDispatcher(
+			deps,
+			'spatial',
+			[ dashboard, posts, yoast, woo ],
+			serverIcons,
+		);
+
+		const lastCall = renderIcons.mock.calls.at( -1 )![ 0 ];
+		const ids = ( lastCall as DesktopIconServerEntry[] ).map(
+			( i ) => i.id,
+		);
 		expect( ids ).toEqual( [
 			'dock-core:index.php',
 			'dock-core:edit.php',
@@ -412,7 +443,7 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( bottomTiles ).toEqual( [ 'woocommerce' ] );
 	} );
 
-	test( 'applyDesktopIcons: spatial ignores server icons, keeps synthesized core only', () => {
+	test( 'applyDesktopIcons: spatial forwards server icons with synthesized core icons', () => {
 		const { deps, renderIcons } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
 			deps,
@@ -439,10 +470,7 @@ describe( 'desktop-layout dispatcher', () => {
 		const ids = ( lastCall as DesktopIconServerEntry[] ).map(
 			( i ) => i.id,
 		);
-		// Updated server icons stored but suppressed in Spatial — only
-		// the synthesized core menu icon is on the wallpaper. Switching
-		// to a layout that includes server icons would surface them.
-		expect( ids ).toEqual( [ 'dock-core:index.php' ] );
+		expect( ids ).toEqual( [ 'plugin:newer', 'dock-core:index.php' ] );
 	} );
 
 	test( 'appendSystemTile: core affinity lands on the side dock in classic', () => {
